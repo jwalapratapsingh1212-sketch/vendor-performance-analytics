@@ -1,128 +1,135 @@
 # Vendor Performance & Retail Analytics
 
-An end-to-end analytics project for examining vendor purchasing, retail sales, product performance, and inventory signals. The repository combines a reproducible Python/SQLite pipeline with the supplied exploratory notebooks, report, and Power BI dashboard.
+An end-to-end vendor analytics project using Python, SQL/SQLite, exploratory data analysis, statistical testing, and Power BI. The objective is to evaluate vendor contribution, purchasing efficiency, brand-level sales performance, inventory turnover, and working capital tied up in unsold stock.
 
-> **Data note:** The original source CSVs are deliberately not included. The supplied raw archive contains large datasets, and redistribution rights have not been established. Obtain the source files from their original provider and review the applicable terms before use. See [data/README.md](data/README.md).
+## Project objectives
 
-## Business questions
-
-- Which vendors account for the largest share of purchasing activity?
-- Which vendor/brand combinations have high purchase value but weak sales value?
-- How do sales quantities compare with purchased quantities?
-- Which products may need pricing, promotion, replenishment, or inventory review?
-- How should vendor freight be handled without double-counting it across brands?
+- Measure vendor-wise purchasing and sales contribution.
+- Identify brands with low sales but comparatively high profit margins.
+- Analyze vendor and brand performance using descriptive statistics and visualizations.
+- Examine purchasing patterns, stock turnover, and unsold inventory value.
+- Compare profit margins between higher- and lower-sales groups using statistical testing.
+- Present business findings through a PDF report and Power BI dashboard.
 
 ## Repository structure
 
 ```text
 vendor-performance-analytics/
-├── data/                 # Add the six source CSVs locally; excluded from Git
-├── dashboard/            # Supplied Power BI report (.pbix)
-├── database/             # Generated SQLite database; excluded from Git
-├── logs/                 # Runtime logs; excluded from Git
-├── notebooks/            # Supplied exploratory and performance notebooks
-├── outputs/              # Generated analysis outputs; excluded by default
-├── reports/              # Supplied PDF report
+├── data/                       # Place original source CSVs here locally
+├── database/                   # SQLite database generated locally
+├── dashboard/                  # Power BI dashboard artifact (pending upload)
+├── notebooks/                  # Jupyter notebooks (pending upload)
+├── reports/                    # PDF report (pending upload)
+├── outputs/                    # Generated outputs
 ├── src/
-│   ├── ingest_data.py    # Chunked CSV -> SQLite ingestion
-│   └── vendor_analysis.py# Vendor/brand summary and derived metrics
+│   ├── ingestion_db.py          # Load CSV files into SQLite
+│   ├── get_vendor_summary.py    # Build and clean vendor summary
+│   ├── ingest_data.py           # Chunked CSV-to-SQLite ingestion
+│   └── vendor_analysis.py       # Vendor/brand performance metrics
+├── tests/
 ├── requirements.txt
 └── README.md
 ```
 
-## Source data expected
+## Dataset files
 
-Place these six files inside `data/`:
+The original project expects these source files under `data/`:
 
-1. `purchases.csv`
-2. `purchase_prices.csv`
-3. `vendor_invoice.csv`
-4. `begin_inventory.csv`
-5. `end_inventory.csv`
-6. `sales.csv`
+- `purchases.csv`
+- `purchase_prices.csv`
+- `vendor_invoice.csv`
+- `begin_inventory.csv`
+- `end_inventory.csv`
+- `sales.csv`
 
-The pipeline currently uses `purchases.csv`, `purchase_prices.csv`, `sales.csv`, and `vendor_invoice.csv` to build the vendor/brand summary. The inventory snapshots are retained as inputs for future inventory-aging and stock-reconciliation extensions.
+The source data archive is not committed to this public repository. It is large, and redistribution rights have not been established. Obtain the files from their original provider and verify the license/terms before using or sharing them. Do not commit confidential or restricted data.
 
-## Quick start
+## Tools and technologies
 
-### 1. Create an environment
+- **Python:** pandas, NumPy, Matplotlib, Seaborn, SciPy
+- **Database:** SQLite and SQL
+- **Analysis:** Jupyter Notebook, descriptive statistics, correlation analysis, outlier analysis, hypothesis testing
+- **Visualization:** Power BI, Matplotlib, Seaborn
+
+## Setup
 
 ```bash
 python -m venv .venv
 # Windows PowerShell
 .venv\Scripts\Activate.ps1
-# macOS / Linux
+# macOS/Linux
 source .venv/bin/activate
 
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. Add the source CSV files
+Place the six CSV files inside `data/` before running the ingestion scripts.
 
-Copy the six CSV files into `data/`. Do not commit them unless their license explicitly permits public redistribution.
+### Original ingestion workflow
 
-### 3. Ingest into SQLite
+```bash
+python src/ingestion_db.py
+python src/get_vendor_summary.py
+```
+
+The original scripts use `inventory.db` in the project root and create a `vendor_sales_summary` table.
+
+### Reproducible chunked workflow
 
 ```bash
 python src/ingest_data.py --data-dir data --db database/inventory.db
-```
-
-CSV files are read in chunks (100,000 rows by default) to reduce peak memory use. Change the chunk size with `--chunksize` if required.
-
-### 4. Build the vendor/brand analysis
-
-```bash
 python src/vendor_analysis.py --db database/inventory.db --output outputs/vendor_brand_performance.csv
+python -m unittest discover -s tests -v
 ```
 
-### 5. Explore the supplied artifacts
+The chunked workflow uses bounded-memory CSV ingestion. Its output and metric definitions are documented in the relevant source modules.
 
-- `notebooks/exploratory_data_analysis.ipynb`
-- `notebooks/vendor_performance_analysis.ipynb`
-- `reports/vendor_performance_report.pdf`
-- `dashboard/vendor_performance.pbix` (open with Microsoft Power BI Desktop)
+## Analysis workflow
 
-The notebooks, PDF, and PBIX are supplied project artifacts. Their historical results should be treated as the original analysis, not as proof that the new scripts have reproduced every reported figure. Re-run the pipeline against the source data and reconcile results before using them for business decisions.
+1. Load source CSV files into SQLite.
+2. Inspect table structure, record counts, data types, missing values, and vendor-level records.
+3. Aggregate purchases, sales, and freight to appropriate grains.
+4. Build a vendor/brand summary for analysis.
+5. Calculate gross profit, profit margin, stock turnover, and sales-to-purchase ratio.
+6. Perform descriptive analysis, distributions, outlier checks, and correlation analysis.
+7. Identify low-sales/high-margin brands and compare vendor performance.
+8. Estimate unsold inventory value and examine vendor concentration.
+9. Use statistical testing to compare profit margins across sales groups.
+10. Communicate findings through the report and dashboard.
 
-## Metric definitions and interpretation
+## Important metric caveats
 
-| Metric | Definition | Interpretation caution |
-|---|---|---|
-| Gross profit before freight | Sales dollars − purchase dollars | Excludes operating expenses, tax treatment, discounts, returns, and freight allocation unless explicitly modeled. It is not net profit. |
-| Gross margin before freight | Gross profit before freight ÷ sales dollars × 100 | Undefined when sales dollars are zero; the pipeline returns null rather than infinity. |
-| Sales-to-purchase value ratio | Sales dollars ÷ purchase dollars | A descriptive ratio, not an accounting profit measure. Timing and opening stock can affect it. |
-| Sell-through quantity ratio | Sales quantity ÷ purchased quantity | Can exceed 1 when opening inventory or prior-period stock contributes to sales. |
-| Vendor total freight | Sum of freight by vendor | Vendor-level freight is not copied as an additive brand-level allocation. Allocate it using an explicit, documented rule before brand-level profitability comparisons. |
+- **Gross profit** in the original project is calculated as sales dollars minus purchase dollars. It is not net profit.
+- **Profit margin** is undefined when sales dollars are zero. Avoid interpreting infinity or silently replacing undefined ratios with zero.
+- **Stock turnover** in the original analysis is sales quantity divided by purchase quantity. It is a proxy and can be affected by opening stock and the analysis period.
+- **Freight cost** is aggregated at vendor level. It must not be summed repeatedly across brand-level rows unless a documented allocation method is applied.
+- The original purchase-price join uses brand as the join key. Validate whether vendor number should also be part of the key to avoid unintended duplicate matches.
+- Recalculate historical figures from the source data before using them in a business decision or external presentation.
 
-## Data quality and modeling decisions
+## Files from the supplied project archive
 
-- Join purchase and price reference data on **both vendor number and brand** to reduce accidental many-to-many matches.
-- Aggregate purchase, sales, and freight independently before joining to avoid row multiplication.
-- Keep zero-sales margin as null; do not replace an undefined ratio with infinity or an arbitrary zero.
-- Vendor freight is vendor-grain data. The pipeline labels it `VendorTotalFreight` and warns against summing it over brand rows.
-- The current gross-profit proxy excludes freight and other costs; do not describe it as net profit.
-- Validate key uniqueness, date ranges, duplicate records, returns/negative quantities, and source-data coverage before production use.
+The uploaded source archive contains the following main project artifacts:
 
-## Historical report: findings to revalidate
+- `ingestion_db.py`
+- `get_vendor_summary.py`
+- `Exploratory Data Analysis.ipynb`
+- `Vendor Performance Analysis.ipynb`
+- `vendor_sales_summary.csv`
+- `Vendor Performance Report.pdf`
+- `vendor_performance.pbix`
 
-The supplied PDF reports, among other findings, a 65.69% purchase contribution from the top 10 vendors, 198 brands in a lower-sales/higher-margin segment, and approximately $2.71M of unsold inventory capital. These are **reported historical results** from the supplied artifact; re-compute and verify them from the original raw files before citing them externally. The PDF also notes negative/infinite margin values and very large freight variation, which warrant careful denominator and aggregation checks.
+The two Python source scripts have been added under `src/`. The notebooks, generated summary CSV, PDF report, and PBIX dashboard are **not yet present in this GitHub repository**. They should be uploaded after checking that the derived data and embedded dashboard data are appropriate for public release. macOS `__MACOSX` metadata files are not project deliverables and should be excluded.
 
-## Reproducibility and limitations
+## Limitations and future improvements
 
-- Python 3.10+ is recommended.
-- SQLite is used for local, portable analysis; no cloud database is required.
-- The ingestion script is chunked, but SQLite writes can still take time for multi-million-row CSVs.
-- The provided PBIX may contain embedded imported data. Review its contents and data permissions before making this public repository visible.
-- No license is declared for the underlying data or supplied third-party artifacts. Add a license only after confirming you have the rights to do so.
-
-## Next analytical extensions
-
-- Allocate vendor freight to brands using purchase-dollar or quantity weights and compare both approaches.
-- Reconcile opening inventory + receipts − sales against ending inventory.
-- Add time-aware vendor scorecards (fill rate, lead time, on-time payment, purchase concentration).
-- Add unit tests for join cardinality, denominator handling, and reconciliation checks.
+- Add data validation for duplicate keys, missing values, negative quantities, and date coverage.
+- Validate join cardinality before merging vendor, brand, and price data.
+- Allocate vendor freight to brands using a clearly documented method before comparing fully loaded profitability.
+- Reconcile beginning inventory + purchases − sales with ending inventory.
+- Add time-based vendor scorecards for purchase concentration, sales contribution, and stock movement.
+- Re-run the full analysis and reconcile the notebook, PDF, dashboard, and Python pipeline outputs.
 
 ## Author
 
-Prepared as a portfolio project. Update this section with your preferred public profile links before sharing widely.
+Jwala Pratap Singh
